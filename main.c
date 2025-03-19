@@ -4,10 +4,18 @@
 
 #define RAM_SIZE 4096
 #define STACK_SIZE 32
+#define DISPLAY_WIDTH 64
+#define DISPLAY_HEIGHT 32
 
-uint16_t pop(const uint16_t *stack, uint16_t *stack_pointer);
-void push(const uint16_t *stack, uint16_t *stack_pointer, uint16_t value);
+struct Stack {
+    uint16_t stack[STACK_SIZE];
+    uint8_t top;
+};
+
+uint16_t pop(struct Stack *stack);
+void push(struct Stack *stack, uint16_t value);
 void stack_overflow(void);
+void stack_underflow(void);
 
 int main(void) {
     uint8_t RAM[RAM_SIZE] = { //stores a byte for each pixel
@@ -28,13 +36,15 @@ int main(void) {
             0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
             0xF0, 0x80, 0xF0, 0x80, 0x80  // F, this is the font
     };
-    uint8_t display_grid[64*32];
+    uint8_t display_grid[DISPLAY_WIDTH*DISPLAY_HEIGHT];
     uint16_t I; // index register
     uint16_t PC; // program counter
     uint8_t delay_timer, sound_timer = UINT8_MAX;
     int8_t V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, VA, VB, VC, VD, VE, VF; // general purpose variable registers
-    uint16_t stack[STACK_SIZE], *stack_pointer;
-    stack_pointer = stack;
+    struct Stack stack = {
+        .stack = {0},
+        .top = 0,
+    };
 
     return 0;
 }
@@ -44,16 +54,21 @@ void stack_overflow() {
     exit(EXIT_FAILURE);
 }
 
-uint16_t pop(const uint16_t *stack, uint16_t *stack_pointer) {
-    if (stack_pointer <= stack) {
-        stack_overflow();
-    }
-    return *(--stack_pointer);
+void stack_underflow() {
+    printf("Stack Underflow");
+    exit(EXIT_FAILURE);
 }
 
-void push(const uint16_t *stack, uint16_t *stack_pointer, uint16_t value) {
-    if (stack_pointer > stack + STACK_SIZE) {
+uint16_t pop(struct Stack *stack) {
+    if (stack->top == 0) {
+        stack_underflow();
+    }
+    return stack->stack[--stack->top];
+}
+
+void push(struct Stack *stack, uint16_t value) {
+    if (stack->top == STACK_SIZE) {
         stack_overflow();
     }
-    *(stack_pointer++) = value;
+    stack->stack[stack->top++] = value;
 }
