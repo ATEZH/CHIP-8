@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <SDL.h>
 
 #define RAM_SIZE 4096
 #define STACK_SIZE 32
 #define DISPLAY_WIDTH 64
 #define DISPLAY_HEIGHT 32
+#define BLOCK_SIZE 20
+#define PROGRAM_START_POSITION 0x200
 
 struct Stack {
     uint16_t stack[STACK_SIZE];
@@ -40,16 +44,30 @@ int main(int argc, char *argv[]) {
     };
     uint8_t display_grid[DISPLAY_WIDTH*DISPLAY_HEIGHT];
     uint16_t I; // index register
-    uint16_t PC = 0x200; // program counter
+    uint16_t PC = PROGRAM_START_POSITION; // program counter
     uint8_t delay_timer, sound_timer = UINT8_MAX;
     int8_t V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, VA, VB, VC, VD, VE, VF; // general purpose variable registers
     struct Stack stack = {
         .stack = {0},
         .top = 0,
     };
+    bool close = false;
 
-    write_program_to_memory(argv[0], RAM + 0x200);
-
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+        printf("SDL_Init Error: %s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_Window* win = SDL_CreateWindow("CHIP_8",
+                                       SDL_WINDOWPOS_CENTERED,
+                                       SDL_WINDOWPOS_CENTERED,
+                                       DISPLAY_WIDTH*BLOCK_SIZE, DISPLAY_HEIGHT*BLOCK_SIZE, 0);
+    while (!close) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) close = true;
+        }
+    }
+    SDL_Quit();
     return 0;
 }
 
