@@ -22,6 +22,7 @@ void stack_overflow(void);
 void stack_underflow(void);
 
 void write_program_to_memory(char *path, uint8_t *RAM);
+uint16_t fetch(uint16_t *PC, uint8_t *RAM);
 
 int main(int argc, char *argv[]) {
     uint8_t RAM[RAM_SIZE] = {
@@ -69,6 +70,12 @@ int main(int argc, char *argv[]) {
     }
     SDL_Quit();
     return 0;
+}
+
+uint16_t fetch(uint16_t *PC, uint8_t *RAM) {
+    uint16_t instruction = ((uint16_t)(*(RAM + *PC)) << 8) + *(RAM + *PC + 1);
+    *PC += 2;
+    return instruction;
 }
 
 void write_program_to_memory(char *path, uint8_t *RAM) {
