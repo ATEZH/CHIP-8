@@ -27,9 +27,10 @@ void set_i(uint16_t *I, uint16_t value);
 void add_v(uint8_t *V, uint8_t value);
 void clear_screen(uint8_t *display);
 void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX, uint8_t VY, uint8_t N);
+void render(SDL_Renderer *renderer, uint8_t *display_grid);
 
 void write_program_to_memory(char *path, uint8_t *RAM);
-void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid);
+void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid, SDL_Renderer *renderer);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
 
 int main(int argc, char *argv[]) {
@@ -59,6 +60,7 @@ int main(int argc, char *argv[]) {
     struct Stack stack = { .stack = {0}, .top = 0 };
     uint8_t display_grid[DISPLAY_WIDTH][DISPLAY_HEIGHT];
     SDL_Window *window;
+    SDL_Renderer *renderer;
     SDL_Event event;
     bool close = false;
 
@@ -74,13 +76,15 @@ int main(int argc, char *argv[]) {
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
                               DISPLAY_WIDTH * BLOCK_SIZE, DISPLAY_HEIGHT * BLOCK_SIZE, 0);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
     while (!close) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) close = true;
         }
         opcode = fetch(&PC, RAM);
-        decode_execute(opcode, &PC, &I, V, RAM, (uint8_t *) display_grid);
+        decode_execute(opcode, &PC, &I, V, RAM, (uint8_t *) display_grid, renderer);
     }
     SDL_Quit();
     return 0;
@@ -129,15 +133,38 @@ void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t 
     }
 }
 
-void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid) {
+void render(SDL_Renderer *render, uint8_t *display_grid) {
+    uint16_t row, col;
+    col = row = 0;
+    SDL_Rect rect;
+    while (display_grid + row * DISPLAY_WIDTH + col < display_grid + DISPLAY_WIDTH * DISPLAY_HEIGHT) {
+        if (*(display_grid + row * DISPLAY_WIDTH + col)) {
+            rect.h = BLOCK_SIZE; rect.w = BLOCK_SIZE; rect.x = col * BLOCK_SIZE; rect.y = row * BLOCK_SIZE;
+            SDL_RenderFillRect(render, &rect);
+        }
+        if (++col == DISPLAY_WIDTH) {col = 0; row++;}
+    }
+    SDL_RenderPresent(render);
+}
+
+void decode_execute(uint16_t opcode,
+                    uint16_t *PC,
+                    uint16_t *I,
+                    uint8_t *V,
+                    uint8_t *RAM,
+                    uint8_t *display_grid,
+                    SDL_Renderer *renderer) {
     uint16_t first_nibble = opcode & 0xF000;
     uint16_t second_nibble = opcode & 0x0F00;
     uint8_t third_nibble = opcode & 0x00F0;
     uint8_t fourth_nibble = opcode & 0x000F;
     switch (first_nibble) {
         case 0x0000:
-            switch (third_nibble) {
-                case 0x0: clear_screen(display_grid); break;
+            switch (fourth_nibble) {
+                case 0x0:
+                    clear_screen(display_grid);
+                    render(renderer, display_grid);
+                    break;
                 case 0xE: break;
             }
             break;
@@ -155,6 +182,7 @@ void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint
         case 0xC000: break;
         case 0xD000:
             draw(display_grid, RAM, I, V, second_nibble >> 8, third_nibble >> 4, fourth_nibble);
+            render(renderer, display_grid);
             break;
         case 0xE000: break;
         case 0xF000: break;
