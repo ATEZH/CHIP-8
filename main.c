@@ -25,6 +25,7 @@ void jump(uint16_t *PC, uint16_t location);
 void set_v(uint8_t *V, uint8_t value);
 void set_i(uint16_t *I, uint16_t value);
 void add_v(uint8_t *V, uint8_t value);
+void clear_screen(uint8_t *display);
 void write_program_to_memory(char *path, uint8_t *RAM);
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
@@ -99,13 +100,23 @@ void add_v(uint8_t *V, uint8_t value) {
     *V += value;
 }
 
+void clear_screen(uint8_t *display) {
+    uint8_t *i = display;
+    while (i < display + DISPLAY_WIDTH*DISPLAY_HEIGHT) *(i++) = 0;
+}
+
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid) {
     uint16_t first_nibble = opcode & 0xF000;
     uint16_t second_nibble = opcode & 0x0F00;
     uint8_t third_nibble = opcode & 0x00F0;
     uint8_t fourth_nibble = opcode & 0x000F;
     switch (first_nibble) {
-        case 0x0000: break;
+        case 0x0000:
+            switch (third_nibble) {
+                case 0x0: clear_screen(display_grid); break;
+                case 0xE: break;
+            }
+            break;
         case 0x1000: jump(PC, opcode & 0x0FFF); break;
         case 0x2000: break;
         case 0x3000: break;
