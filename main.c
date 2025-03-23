@@ -22,6 +22,7 @@ void stack_overflow(void);
 void stack_underflow(void);
 
 void write_program_to_memory(char *path, uint8_t *RAM);
+void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
 
 int main(int argc, char *argv[]) {
@@ -43,33 +44,64 @@ int main(int argc, char *argv[]) {
             0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
             0xF0, 0x80, 0xF0, 0x80, 0x80  // F, this is the font
     };
-    uint8_t display_grid[DISPLAY_WIDTH*DISPLAY_HEIGHT];
     uint16_t I; // index register
     uint16_t PC = PROGRAM_START_POSITION; // program counter
+    uint16_t opcode;
     uint8_t delay_timer, sound_timer = UINT8_MAX;
-    int8_t V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, VA, VB, VC, VD, VE, VF; // general purpose variable registers
-    struct Stack stack = {
-        .stack = {0},
-        .top = 0,
-    };
+    uint8_t V[16] = {0};
+    struct Stack stack = { .stack = {0}, .top = 0 };
+    uint8_t display_grid[DISPLAY_WIDTH][DISPLAY_HEIGHT];
+    SDL_Window *window;
+    SDL_Event event;
     bool close = false;
 
+    write_program_to_memory(argv[1], RAM + PROGRAM_START_POSITION);
+
+    SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
+
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-        printf("SDL_Init Error: %s\n", SDL_GetError());
+        SDL_Log("SDL_Init Error: %s\n", SDL_GetError());
         return 1;
     }
-    SDL_Window* win = SDL_CreateWindow("CHIP_8",
-                                       SDL_WINDOWPOS_CENTERED,
-                                       SDL_WINDOWPOS_CENTERED,
-                                       DISPLAY_WIDTH*BLOCK_SIZE, DISPLAY_HEIGHT*BLOCK_SIZE, 0);
+    window = SDL_CreateWindow("CHIP_8",
+                              SDL_WINDOWPOS_CENTERED,
+                              SDL_WINDOWPOS_CENTERED,
+                              DISPLAY_WIDTH * BLOCK_SIZE, DISPLAY_HEIGHT * BLOCK_SIZE, 0);
+
     while (!close) {
-        SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) close = true;
         }
+        opcode = fetch(&PC, RAM);
+        decode_execute(opcode, &PC, &I, V, RAM, (uint8_t *) display_grid);
     }
     SDL_Quit();
     return 0;
+}
+
+void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid) {
+    uint16_t first_nibble = opcode & 0xF000;
+    uint16_t second_nibble = opcode & 0x0F00;
+    uint8_t third_nibble = opcode & 0x00F0;
+    uint8_t fourth_nibble = opcode & 0x000F;
+    switch (first_nibble) {
+        case 0x0000: break;
+        case 0x1000: break;
+        case 0x2000: break;
+        case 0x3000: break;
+        case 0x4000: break;
+        case 0x5000: break;
+        case 0x6000: break;
+        case 0x7000: break;
+        case 0x8000: break;
+        case 0x9000: break;
+        case 0xA000: break;
+        case 0xB000: break;
+        case 0xC000: break;
+        case 0xD000: break;
+        case 0xE000: break;
+        case 0xF000: break;
+    }
 }
 
 uint16_t fetch(uint16_t *PC, uint8_t *RAM) {
