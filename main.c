@@ -41,6 +41,8 @@ void subtract_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
 void shiftr_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
 void subtract_vy_vx(uint8_t *VX, uint8_t *VY, uint8_t *VF);
 void shiftl_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
+void skip_key_v(uint8_t *V, uint16_t *PC);
+void skip_key_n_v(uint8_t *V, uint16_t *PC);
 void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location);
 void return_from_subroutine(struct Stack *stack, uint16_t *PC);
 void clear_screen(uint8_t *display);
@@ -49,6 +51,7 @@ void render(SDL_Renderer *renderer, uint8_t *display_grid);
 
 void write_program_to_memory(char *path, uint8_t *RAM);
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, struct Stack *stack, uint8_t *RAM, uint8_t *display_grid, SDL_Renderer *renderer);
+uint16_t keyboard_value(SDL_Event event);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
 
 int main(int argc, char *argv[]) {
@@ -189,6 +192,20 @@ void shiftl_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
     *VX <<= 1;
 }
 
+void skip_key_v(uint8_t *V, uint16_t *PC) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (keyboard_value(event) == *V) *PC += 2;
+    }
+}
+
+void skip_key_n_v(uint8_t *V, uint16_t *PC) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (keyboard_value(event) != *V) *PC += 2;
+    }
+}
+
 void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location) {
     push(stack, *PC);
     *PC = location;
@@ -289,10 +306,37 @@ void decode_execute(uint16_t opcode,
             draw(display_grid, RAM, I, V, second_nibble >> 8, third_nibble >> 4, fourth_nibble);
             render(renderer, display_grid);
             break;
-        case 0xE000: break;
+        case 0xE000:
+            switch (opcode & 0xFF) {
+                case 0x9E: skip_key_v(V + (second_nibble >> 8), PC);
+                case 0xA1: skip_key_n_v(V + (second_nibble >> 8), PC);
+            } break;
         case 0xF000: break;
         default: break;
     }
+}
+
+uint16_t keyboard_value(SDL_Event event) {
+    if (event.type == SDL_KEYDOWN)
+        switch (event.key.keysym.sym) {
+            case SDLK_1: return 0x1;
+            case SDLK_2: return 0x2;
+            case SDLK_3: return 0x3;
+            case SDLK_4: return 0xC;
+            case SDLK_q: return 0x4;
+            case SDLK_w: return 0x5;
+            case SDLK_e: return 0x6;
+            case SDLK_r: return 0xD;
+            case SDLK_a: return 0x7;
+            case SDLK_s: return 0x8;
+            case SDLK_d: return 0x9;
+            case SDLK_f: return 0xE;
+            case SDLK_z: return 0xA;
+            case SDLK_x: return 0x0;
+            case SDLK_c: return 0xB;
+            case SDLK_v: return 0xF;
+        }
+    return 0xFFF;
 }
 
 uint16_t fetch(uint16_t *PC, uint8_t *RAM) {
