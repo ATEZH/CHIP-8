@@ -25,12 +25,14 @@ void jump(uint16_t *PC, uint16_t location);
 void set_v(uint8_t *V, uint8_t value);
 void set_i(uint16_t *I, uint16_t value);
 void add_v(uint8_t *V, uint8_t value);
+void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location);
+void return_from_subroutine(struct Stack *stack, uint16_t *PC);
 void clear_screen(uint8_t *display);
 void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX, uint8_t VY, uint8_t N);
 void render(SDL_Renderer *renderer, uint8_t *display_grid);
 
 void write_program_to_memory(char *path, uint8_t *RAM);
-void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid, SDL_Renderer *renderer);
+void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, struct Stack *stack, uint8_t *RAM, uint8_t *display_grid, SDL_Renderer *renderer);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
 
 int main(int argc, char *argv[]) {
@@ -84,7 +86,7 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_QUIT) close = true;
         }
         opcode = fetch(&PC, RAM);
-        decode_execute(opcode, &PC, &I, V, RAM, (uint8_t *) display_grid, renderer);
+        decode_execute(opcode, &PC, &I, V, &stack, RAM, (uint8_t *) display_grid, renderer);
     }
     SDL_Quit();
     return 0;
@@ -104,6 +106,15 @@ void set_i(uint16_t *I, uint16_t value) {
 
 void add_v(uint8_t *V, uint8_t value) {
     *V += value;
+}
+
+void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location) {
+    push(stack, *PC);
+    *PC = location;
+}
+
+void return_from_subroutine(struct Stack *stack, uint16_t *PC) {
+    *PC = pop(stack);
 }
 
 void clear_screen(uint8_t *display) {
@@ -151,6 +162,7 @@ void decode_execute(uint16_t opcode,
                     uint16_t *PC,
                     uint16_t *I,
                     uint8_t *V,
+                    struct Stack *stack,
                     uint8_t *RAM,
                     uint8_t *display_grid,
                     SDL_Renderer *renderer) {
@@ -165,16 +177,15 @@ void decode_execute(uint16_t opcode,
                     clear_screen(display_grid);
                     render(renderer, display_grid);
                     break;
-                case 0xE: break;
-            }
-            break;
+                case 0xE: return_from_subroutine(stack, PC); break;
+            } break;
         case 0x1000: jump(PC, opcode & 0x0FFF); break;
-        case 0x2000: break;
+        case 0x2000: call_subroutine(stack, PC, opcode & 0x0FFF); break;
         case 0x3000: break;
         case 0x4000: break;
         case 0x5000: break;
-        case 0x6000: set_v(V + (second_nibble >> 8), third_nibble + fourth_nibble); break;
-        case 0x7000: add_v(V + (second_nibble >> 8), third_nibble + fourth_nibble); break;
+        case 0x6000: set_v(V + (second_nibble >> 8), opcode & 0x00FF); break;
+        case 0x7000: add_v(V + (second_nibble >> 8), opcode & 0x00FF); break;
         case 0x8000: break;
         case 0x9000: break;
         case 0xA000: set_i(I, opcode & 0x0FFF); break;
