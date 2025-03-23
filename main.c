@@ -26,6 +26,8 @@ void set_v(uint8_t *V, uint8_t value);
 void set_i(uint16_t *I, uint16_t value);
 void add_v(uint8_t *V, uint8_t value);
 void clear_screen(uint8_t *display);
+void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX, uint8_t VY, uint8_t N);
+
 void write_program_to_memory(char *path, uint8_t *RAM);
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
@@ -105,6 +107,28 @@ void clear_screen(uint8_t *display) {
     while (i < display + DISPLAY_WIDTH*DISPLAY_HEIGHT) *(i++) = 0;
 }
 
+void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX, uint8_t VY, uint8_t N) {
+    int8_t shift;
+    uint8_t row, current_byte;
+    uint16_t pixel_position;
+    row = 0;
+    VX = *(V + VX) % DISPLAY_WIDTH;
+    VY = *(V + VY) % DISPLAY_HEIGHT;
+    pixel_position = VX + DISPLAY_WIDTH * VY;
+    while (row < N && pixel_position < DISPLAY_WIDTH * DISPLAY_HEIGHT) {
+        shift = 7;
+        current_byte = *(RAM + *I + row);
+        while (shift >= 0 && pixel_position < DISPLAY_WIDTH * (VY + row + 1)) {
+            if (*(display_grid + pixel_position) && (current_byte >> shift)) *(V + 0xF) = 1;
+            *(display_grid + pixel_position) = *(display_grid + pixel_position) ^ ((current_byte >> shift) & 1);
+            pixel_position++;
+            shift--;
+        }
+        pixel_position += DISPLAY_WIDTH - 7 + shift;
+        row++;
+    }
+}
+
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid) {
     uint16_t first_nibble = opcode & 0xF000;
     uint16_t second_nibble = opcode & 0x0F00;
@@ -129,7 +153,9 @@ void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint
         case 0xA000: set_i(I, opcode & 0x0FFF); break;
         case 0xB000: break;
         case 0xC000: break;
-        case 0xD000: break;
+        case 0xD000:
+            draw(display_grid, RAM, I, V, second_nibble >> 8, third_nibble >> 4, fourth_nibble);
+            break;
         case 0xE000: break;
         case 0xF000: break;
     }
