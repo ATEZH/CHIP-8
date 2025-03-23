@@ -28,6 +28,7 @@ void add_v(uint8_t *V, uint8_t value);
 void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
 void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
 void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
+void skip_vx_not_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
 void load_vy_to_vx(uint8_t *VX, uint8_t *VY);
 void or_vx_vy(uint8_t *VX, uint8_t *VY);
 void and_vx_vy(uint8_t *VX, uint8_t *VY);
@@ -130,6 +131,10 @@ void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value) {
 
 void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY) {
     if (*VX == *VY) *PC += 2;
+}
+
+void skip_vx_not_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY) {
+    if (*VX != *VY) *PC += 2;
 }
 
 void load_vy_to_vx(uint8_t *VX, uint8_t *VY) {
@@ -264,7 +269,7 @@ void decode_execute(uint16_t opcode,
                 case 0xE: shiftl_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
                 default: break;
             } break;
-        case 0x9000: break;
+        case 0x9000: skip_vx_not_e_vy(PC, V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
         case 0xA000: set_i(I, opcode & 0x0FFF); break;
         case 0xB000: break;
         case 0xC000: break;
