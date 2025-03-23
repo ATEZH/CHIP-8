@@ -21,6 +21,10 @@ void push(struct Stack *stack, uint16_t value);
 void stack_overflow(void);
 void stack_underflow(void);
 
+void jump(uint16_t *PC, uint16_t location);
+void set_v(uint8_t *V, uint8_t value);
+void set_i(uint16_t *I, uint16_t value);
+void add_v(uint8_t *V, uint8_t value);
 void write_program_to_memory(char *path, uint8_t *RAM);
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid);
 uint16_t fetch(uint16_t *PC, uint8_t *RAM);
@@ -79,6 +83,22 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+void jump(uint16_t *PC, uint16_t location) {
+    *PC = location;
+}
+
+void set_v(uint8_t *V, uint8_t value) {
+    *V = value;
+}
+
+void set_i(uint16_t *I, uint16_t value) {
+    *I = value;
+}
+
+void add_v(uint8_t *V, uint8_t value) {
+    *V += value;
+}
+
 void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint8_t *RAM, uint8_t *display_grid) {
     uint16_t first_nibble = opcode & 0xF000;
     uint16_t second_nibble = opcode & 0x0F00;
@@ -86,16 +106,16 @@ void decode_execute(uint16_t opcode, uint16_t *PC, uint16_t *I, uint8_t *V, uint
     uint8_t fourth_nibble = opcode & 0x000F;
     switch (first_nibble) {
         case 0x0000: break;
-        case 0x1000: break;
+        case 0x1000: jump(PC, opcode & 0x0FFF); break;
         case 0x2000: break;
         case 0x3000: break;
         case 0x4000: break;
         case 0x5000: break;
-        case 0x6000: break;
-        case 0x7000: break;
+        case 0x6000: set_v(V + (second_nibble >> 8), third_nibble + fourth_nibble); break;
+        case 0x7000: add_v(V + (second_nibble >> 8), third_nibble + fourth_nibble); break;
         case 0x8000: break;
         case 0x9000: break;
-        case 0xA000: break;
+        case 0xA000: set_i(I, opcode & 0x0FFF); break;
         case 0xB000: break;
         case 0xC000: break;
         case 0xD000: break;
