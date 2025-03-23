@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 #include <SDL.h>
 
 #define RAM_SIZE 4096
@@ -78,6 +79,7 @@ int main(int argc, char *argv[]) {
     SDL_Renderer *renderer;
     SDL_Event event;
     bool close = false;
+    srand(time(NULL) ^ clock() ^ getpid());
 
     write_program_to_memory(argv[1], RAM + PROGRAM_START_POSITION);
 
@@ -115,6 +117,14 @@ void set_v(uint8_t *V, uint8_t value) {
 
 void set_i(uint16_t *I, uint16_t value) {
     *I = value;
+}
+
+void jump_offset(uint16_t *PC, uint16_t address, uint8_t V0) {
+    *PC = address + V0;
+}
+
+void random(uint8_t *V, uint8_t value) {
+    *V = (uint8_t)(rand() & 0xFF) & value;
 }
 
 void add_v(uint8_t *V, uint8_t value) {
