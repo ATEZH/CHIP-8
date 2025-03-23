@@ -28,6 +28,15 @@ void add_v(uint8_t *V, uint8_t value);
 void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
 void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
 void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
+void load_vy_to_vx(uint8_t *VX, uint8_t *VY);
+void or_vx_vy(uint8_t *VX, uint8_t *VY);
+void and_vx_vy(uint8_t *VX, uint8_t *VY);
+void xor_vx_vy(uint8_t *VX, uint8_t *VY);
+void add_vx_vy(uint8_t *VX, uint8_t *VY);
+void subtract_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
+void shiftr_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
+void subtract_vy_vx(uint8_t *VX, uint8_t *VY, uint8_t *VF);
+void shiftl_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
 void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location);
 void return_from_subroutine(struct Stack *stack, uint16_t *PC);
 void clear_screen(uint8_t *display);
@@ -123,6 +132,46 @@ void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY) {
     if (*VX == *VY) *PC += 2;
 }
 
+void load_vy_to_vx(uint8_t *VX, uint8_t *VY) {
+    *VX = *VY;
+}
+
+void or_vx_vy(uint8_t *VX, uint8_t *VY) {
+    *VX |= *VY;
+}
+
+void and_vx_vy(uint8_t *VX, uint8_t *VY) {
+    *VX &= *VY;
+}
+
+void xor_vx_vy(uint8_t *VX, uint8_t *VY) {
+    *VX ^= *VY;
+}
+
+void add_vx_vy(uint8_t *VX, uint8_t *VY) {
+    *VX += *VY;
+}
+
+void subtract_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
+    *VF = *VX > *VY;
+    *VX = *VX - *VY;
+}
+
+void shiftr_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
+    *VF = ((*VX & 0x01) == 0x01);
+    *VX >>= 1;
+}
+
+void subtract_vy_vx(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
+    *VF = *VY > *VX;
+    *VX = *VY - *VX;
+}
+
+void shiftl_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
+    *VF = ((*VX & 0x80) == 0x80);
+    *VX <<= 1;
+}
+
 void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location) {
     push(stack, *PC);
     *PC = location;
@@ -193,6 +242,7 @@ void decode_execute(uint16_t opcode,
                     render(renderer, display_grid);
                     break;
                 case 0xE: return_from_subroutine(stack, PC); break;
+                default: break;
             } break;
         case 0x1000: jump(PC, opcode & 0x0FFF); break;
         case 0x2000: call_subroutine(stack, PC, opcode & 0x0FFF); break;
@@ -201,7 +251,19 @@ void decode_execute(uint16_t opcode,
         case 0x5000: skip_vx_e_vy(PC, V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
         case 0x6000: set_v(V + (second_nibble >> 8), opcode & 0x00FF); break;
         case 0x7000: add_v(V + (second_nibble >> 8), opcode & 0x00FF); break;
-        case 0x8000: break;
+        case 0x8000:
+            switch (fourth_nibble) {
+                case 0x0: load_vy_to_vx(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
+                case 0x1: or_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
+                case 0x2: and_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
+                case 0x3: xor_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
+                case 0x4: add_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
+                case 0x5: subtract_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
+                case 0x6: shiftr_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
+                case 0x7: subtract_vy_vx(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
+                case 0xE: shiftl_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
+                default: break;
+            } break;
         case 0x9000: break;
         case 0xA000: set_i(I, opcode & 0x0FFF); break;
         case 0xB000: break;
@@ -212,6 +274,7 @@ void decode_execute(uint16_t opcode,
             break;
         case 0xE000: break;
         case 0xF000: break;
+        default: break;
     }
 }
 
