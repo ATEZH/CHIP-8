@@ -273,16 +273,16 @@ void decode_execute(uint16_t opcode,
                 case 0x2: and_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
                 case 0x3: xor_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
                 case 0x4: add_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
-                case 0x5: subtract_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
-                case 0x6: shiftr_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
-                case 0x7: subtract_vy_vx(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
-                case 0xE: shiftl_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0xF); break;
+                case 0x5: subtract_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0x000F); break;
+                case 0x6: shiftr_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0x000F); break;
+                case 0x7: subtract_vy_vx(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0x000F); break;
+                case 0xE: shiftl_vx_vy(V + (second_nibble >> 8), V + (third_nibble >> 4), V + 0x000F); break;
                 default: break;
             } break;
         case 0x9000: skip_vx_not_e_vy(PC, V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
         case 0xA000: set_i(I, opcode & 0x0FFF); break;
-        case 0xB000: break;
-        case 0xC000: break;
+        case 0xB000: jump_offset(PC, opcode & 0x0FFF, *V); break;
+        case 0xC000: random(V + (second_nibble >> 8), opcode & 0x00FF); break;
         case 0xD000:
             draw(display_grid, RAM, I, V, second_nibble >> 8, third_nibble >> 4, fourth_nibble);
             render(renderer, display_grid);
