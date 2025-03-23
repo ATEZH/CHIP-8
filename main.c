@@ -26,6 +26,8 @@ void jump(uint16_t *PC, uint16_t location);
 void set_v(uint8_t *V, uint8_t value);
 void set_i(uint16_t *I, uint16_t value);
 void add_v(uint8_t *V, uint8_t value);
+void jump_offset(uint16_t *PC, uint16_t address, uint8_t V0);
+void random(uint8_t *V, uint8_t value);
 void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
 void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
 void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
