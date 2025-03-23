@@ -25,6 +25,9 @@ void jump(uint16_t *PC, uint16_t location);
 void set_v(uint8_t *V, uint8_t value);
 void set_i(uint16_t *I, uint16_t value);
 void add_v(uint8_t *V, uint8_t value);
+void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
+void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
+void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
 void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location);
 void return_from_subroutine(struct Stack *stack, uint16_t *PC);
 void clear_screen(uint8_t *display);
@@ -108,6 +111,18 @@ void add_v(uint8_t *V, uint8_t value) {
     *V += value;
 }
 
+void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value) {
+    if (*V == value) *PC += 2;
+}
+
+void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value) {
+    if (*V != value) *PC += 2;
+}
+
+void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY) {
+    if (*VX == *VY) *PC += 2;
+}
+
 void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location) {
     push(stack, *PC);
     *PC = location;
@@ -181,9 +196,9 @@ void decode_execute(uint16_t opcode,
             } break;
         case 0x1000: jump(PC, opcode & 0x0FFF); break;
         case 0x2000: call_subroutine(stack, PC, opcode & 0x0FFF); break;
-        case 0x3000: break;
-        case 0x4000: break;
-        case 0x5000: break;
+        case 0x3000: skip_vx_e_nn(PC, V + (second_nibble >> 8), opcode & 0x00FF); break;
+        case 0x4000: skip_vx_not_e_nn(PC, V + (second_nibble >> 8), opcode & 0x00FF); break;
+        case 0x5000: skip_vx_e_vy(PC, V + (second_nibble >> 8), V + (third_nibble >> 4)); break;
         case 0x6000: set_v(V + (second_nibble >> 8), opcode & 0x00FF); break;
         case 0x7000: add_v(V + (second_nibble >> 8), opcode & 0x00FF); break;
         case 0x8000: break;
