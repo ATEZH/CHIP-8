@@ -58,7 +58,7 @@ void set_vx_to_vy(uint8_t *VX, uint8_t VY);
 void or_vx_vy(uint8_t *VX, uint8_t VY);
 void and_vx_vy(uint8_t *VX, uint8_t VY);
 void xor_vx_vy(uint8_t *VX, uint8_t VY);
-void add_vx_vy(uint8_t *VX, uint8_t VY);
+void add_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF);
 void subtract_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF);
 void shiftr_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF);
 void subtract_vy_vx(uint8_t *VX, uint8_t VY, uint8_t *VF);
@@ -81,7 +81,7 @@ void set_v_delay(uint8_t *V, uint8_t delay_timer);
 void set_delay_v(uint8_t *delay_timer, uint8_t V);
 void set_sound_v(uint8_t *sound_timer, uint8_t V);
 void add_i_v(uint16_t *I, uint8_t V, uint8_t *VF);
-void get_key(uint8_t *V);
+void get_key(uint8_t *V, uint16_t *PC);
 void font_character(uint16_t *I, uint8_t V);
 void binary_coded_decimal_conversion(uint8_t *RAM, uint16_t I, uint8_t V);
 void store_to_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX);
@@ -95,7 +95,8 @@ uint16_t keyboard_value(SDL_Event event);
 void toggle_halt_to_get_key();
 void fetch(uint16_t *opcode, uint16_t *PC, uint8_t *RAM);
 void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid, SDL_Renderer *renderer);
-void render(SDL_Renderer *renderer, uint8_t *display_grid);
+void render_drawing(SDL_Renderer *renderer, uint8_t *display_grid);
+void render_clear(SDL_Renderer *renderer);
 
 bool halt_to_get_key = false;
 
@@ -142,12 +143,8 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_QUIT) close = true;
         }
         decrement_timers(&context.delay_timer, &context.sound_timer, &time_stamp);
-        if (!halt_to_get_key) {
-            fetch(&opcode, &context.PC, context.RAM);
-            decode_execute(opcode, &context, (uint8_t *) display_grid, renderer);
-        } else {
-            get_key(context.V + ((opcode & 0x0F00) >> 8));
-        }
+        fetch(&opcode, &context.PC, context.RAM);
+        decode_execute(opcode, &context, (uint8_t *) display_grid, renderer);
     }
     SDL_Quit();
     return 0;
@@ -242,28 +239,34 @@ void xor_vx_vy(uint8_t *VX, uint8_t VY) {
     *VX ^= VY;
 }
 
-void add_vx_vy(uint8_t *VX, uint8_t VY) {
+void add_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
+    uint8_t VF_t = (*VX > (0xFF - VY));
     *VX += VY;
+    *VF = VF_t;
 }
 
 void subtract_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
-    *VF = *VX > VY;
+    uint8_t VF_t = *VX >= VY;
     *VX = *VX - VY;
+    *VF = VF_t;
 }
 
 void shiftr_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
-    *VF = ((*VX & 0x01) == 0x01);
+    uint8_t VF_t = ((*VX & 0x01) == 0x01);
     *VX >>= 1;
+    *VF = VF_t;
 }
 
 void subtract_vy_vx(uint8_t *VX, uint8_t VY, uint8_t *VF) {
-    *VF = VY > *VX;
+    uint8_t VF_t = VY >= *VX;
     *VX = VY - *VX;
+    *VF = VF_t;
 }
 
 void shiftl_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
-    *VF = ((*VX & 0x80) == 0x80);
+    uint8_t VF_t = ((*VX & 0x80) == 0x80);
     *VX <<= 1;
+    *VF = VF_t;
 }
 
 void skip_key_v(uint8_t V, uint16_t *PC) {
@@ -301,15 +304,16 @@ void toggle_halt_to_get_key() {
     halt_to_get_key = !halt_to_get_key;
 }
 
-void get_key(uint8_t *V) {
+void get_key(uint8_t *V, uint16_t *PC) {
     SDL_Event event;
     uint16_t key;
     while (SDL_PollEvent(&event)) {
         if ((key = keyboard_value(event)) != 0xFFF) {
             *V = (uint8_t) key;
-            toggle_halt_to_get_key();
+            return;
         }
     }
+    *PC -= 2;
 }
 
 void font_character(uint16_t *I, uint8_t V) {
@@ -374,21 +378,28 @@ void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t 
     }
 }
 
-void render(SDL_Renderer *render, uint8_t *display_grid) {
+void render_drawing(SDL_Renderer *renderer, uint8_t *display_grid) {
     uint16_t row, col;
     col = row = 0;
     SDL_Rect rect;
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     while (display_grid + row * DISPLAY_WIDTH + col < display_grid + DISPLAY_WIDTH * DISPLAY_HEIGHT) {
         if (*(display_grid + row * DISPLAY_WIDTH + col)) {
             rect.h = BLOCK_SIZE; rect.w = BLOCK_SIZE; rect.x = col * BLOCK_SIZE; rect.y = row * BLOCK_SIZE;
-            SDL_RenderFillRect(render, &rect);
+            SDL_RenderFillRect(renderer, &rect);
         }
         if (++col == DISPLAY_WIDTH) {col = 0; row++;}
     }
-    SDL_RenderPresent(render);
+    SDL_RenderPresent(renderer);
+}
+
+void render_clear(SDL_Renderer *renderer) {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
 }
 
 void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid, SDL_Renderer *renderer) {
+    SDL_Log("%.4x", opcode);
     uint16_t nib1 = opcode & 0xF000; // first nibble
     uint16_t nib2 = (opcode & 0x0F00) >> 8; // second nibble
     uint8_t nib3 = (opcode & 0x00F0) >> 4;  // third nibble
@@ -398,7 +409,7 @@ void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid,
             switch (nib4) {
                 case 0x0:
                     clear_screen(display_grid);
-                    render(renderer, display_grid);
+                    render_clear(renderer);
                     break;
                 case 0xE: return_from_subroutine(&ctx->stack, &ctx->PC); break;
                 default: break;
@@ -416,7 +427,7 @@ void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid,
                 case 0x1: or_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
                 case 0x2: and_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
                 case 0x3: xor_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
-                case 0x4: add_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
+                case 0x4: add_vx_vy(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
                 case 0x5: subtract_vx_vy(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
                 case 0x6: shiftr_vx_vy(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
                 case 0x7: subtract_vy_vx(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
@@ -428,8 +439,9 @@ void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid,
         case 0xB000: jump_offset(&ctx->PC, opcode & 0x0FFF, *ctx->V); break;
         case 0xC000: random(ctx->V + nib2, opcode & 0x00FF); break;
         case 0xD000:
+            render_clear(renderer);
             draw(display_grid, ctx->RAM, &ctx->I, ctx->V, nib2, nib3, nib4);
-            render(renderer, display_grid);
+            render_drawing(renderer, display_grid);
             break;
         case 0xE000:
             switch (opcode & 0x00FF) {
@@ -442,7 +454,7 @@ void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid,
                 case 0x15: set_delay_v(&ctx->delay_timer, *(ctx->V + nib2)); break;
                 case 0x18: set_sound_v(&ctx->sound_timer, *(ctx->V + nib2)); break;
                 case 0x1E: add_i_v(&ctx->I, *(ctx->V + nib2), ctx->V + 0xF); break;
-                case 0x0A: toggle_halt_to_get_key(); break;
+                case 0x0A: get_key(ctx->V + nib2, &ctx->PC); break;
                 case 0x29: font_character(&ctx->I, *(ctx->V + nib2)); break;
                 case 0x33: binary_coded_decimal_conversion(ctx->RAM, ctx->I, *(ctx->V + nib2)); break;
                 case 0x55: store_to_memory(ctx->RAM, &ctx->I, ctx->V, nib2); break;
