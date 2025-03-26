@@ -13,6 +13,8 @@
 #define DISPLAY_HEIGHT 32
 #define BLOCK_SIZE 20
 #define PROGRAM_START_POSITION 0x200
+#define FONT_START_POSITION 0x50
+#define NUM_OF_FONT_CHARACTER_BYTES 5
 
 struct Stack {
     uint16_t stack[STACK_SIZE];
@@ -34,40 +36,68 @@ void push(struct Stack *stack, uint16_t value);
 void stack_overflow(void);
 void stack_underflow(void);
 
-void jump(uint16_t *PC, uint16_t location);
-void set_v(uint8_t *V, uint8_t value);
-void set_i(uint16_t *I, uint16_t value);
-void add_v(uint8_t *V, uint8_t value);
-void jump_offset(uint16_t *PC, uint16_t address, uint8_t V0);
-void random(uint8_t *V, uint8_t value);
-void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
-void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value);
-void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
-void skip_vx_not_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY);
-void load_vy_to_vx(uint8_t *VX, uint8_t *VY);
-void or_vx_vy(uint8_t *VX, uint8_t *VY);
-void and_vx_vy(uint8_t *VX, uint8_t *VY);
-void xor_vx_vy(uint8_t *VX, uint8_t *VY);
-void add_vx_vy(uint8_t *VX, uint8_t *VY);
-void subtract_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
-void shiftr_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
-void subtract_vy_vx(uint8_t *VX, uint8_t *VY, uint8_t *VF);
-void shiftl_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF);
-void skip_key_v(uint8_t *V, uint16_t *PC);
-void skip_key_n_v(uint8_t *V, uint16_t *PC);
-void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location);
-void return_from_subroutine(struct Stack *stack, uint16_t *PC);
+// 0
 void clear_screen(uint8_t *display);
+void return_from_subroutine(struct Stack *stack, uint16_t *PC);
+// 1
+void jump(uint16_t *PC, uint16_t location);
+// 2
+void call_subroutine(struct Stack *stack, uint16_t *PC, uint16_t location);
+// 3
+void skip_vx_e_nn(uint16_t *PC, uint8_t V, uint8_t value);
+// 4
+void skip_vx_not_e_nn(uint16_t *PC, uint8_t V, uint8_t value);
+// 5
+void skip_vx_e_vy(uint16_t *PC, uint8_t VX, uint8_t VY);
+// 6
+void set_v(uint8_t *V, uint8_t value);
+// 7
+void add_v(uint8_t *V, uint8_t value);
+// 8
+void set_vx_to_vy(uint8_t *VX, uint8_t VY);
+void or_vx_vy(uint8_t *VX, uint8_t VY);
+void and_vx_vy(uint8_t *VX, uint8_t VY);
+void xor_vx_vy(uint8_t *VX, uint8_t VY);
+void add_vx_vy(uint8_t *VX, uint8_t VY);
+void subtract_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF);
+void shiftr_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF);
+void subtract_vy_vx(uint8_t *VX, uint8_t VY, uint8_t *VF);
+void shiftl_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF);
+// 9
+void skip_vx_not_e_vy(uint16_t *PC, uint8_t VX, uint8_t VY);
+// A
+void set_i(uint16_t *I, uint16_t value);
+// B
+void jump_offset(uint16_t *PC, uint16_t address, uint8_t V0);
+// C
+void random(uint8_t *V, uint8_t value);
+// D
 void draw(uint8_t *display_grid, uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX, uint8_t VY, uint8_t N);
-void render(SDL_Renderer *renderer, uint8_t *display_grid);
-
+// E
+void skip_key_v(uint8_t V, uint16_t *PC);
+void skip_key_n_v(uint8_t V, uint16_t *PC);
+// F
+void set_v_delay(uint8_t *V, uint8_t delay_timer);
+void set_delay_v(uint8_t *delay_timer, uint8_t V);
+void set_sound_v(uint8_t *sound_timer, uint8_t V);
+void add_i_v(uint16_t *I, uint8_t V, uint8_t *VF);
+void get_key(uint8_t *V);
+void font_character(uint16_t *I, uint8_t V);
+void binary_coded_decimal_conversion(uint8_t *RAM, uint16_t I, uint8_t V);
+void store_to_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX);
+void load_from_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX);
+// utility
 void write_program_to_memory(char *path, uint8_t *RAM);
 void write_font_to_memory(uint8_t *RAM);
-void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid, SDL_Renderer *renderer);
 void decrement_timers(uint8_t *delay_timer, uint8_t *sound_timer, uint64_t *time_stamp);
-uint16_t keyboard_value(SDL_Event event);
-uint16_t fetch(uint16_t *PC, uint8_t *RAM);
 uint64_t time_in_milliseconds(void);
+uint16_t keyboard_value(SDL_Event event);
+void toggle_halt_to_get_key();
+void fetch(uint16_t *opcode, uint16_t *PC, uint8_t *RAM);
+void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid, SDL_Renderer *renderer);
+void render(SDL_Renderer *renderer, uint8_t *display_grid);
+
+bool halt_to_get_key = false;
 
 int main(int argc, char *argv[]) {
     struct Context context = {
@@ -112,15 +142,19 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_QUIT) close = true;
         }
         decrement_timers(&context.delay_timer, &context.sound_timer, &time_stamp);
-        opcode = fetch(&context.PC, context.RAM);
-        decode_execute(opcode, &context, (uint8_t *) display_grid, renderer);
+        if (!halt_to_get_key) {
+            fetch(&opcode, &context.PC, context.RAM);
+            decode_execute(opcode, &context, (uint8_t *) display_grid, renderer);
+        } else {
+            get_key(context.V + ((opcode & 0x0F00) >> 8));
+        }
     }
     SDL_Quit();
     return 0;
 }
 
 void write_font_to_memory(uint8_t *RAM) {
-    uint8_t i;
+    uint8_t i = FONT_START_POSITION;
     uint8_t font[] = {
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -139,7 +173,7 @@ void write_font_to_memory(uint8_t *RAM) {
             0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
             0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
-    for (i = 0; i < 80; i++) {
+    for (; i < FONT_START_POSITION + 80; i++) {
         *(RAM + i) = *(font + i);
     }
 }
@@ -148,7 +182,6 @@ void decrement_timers(uint8_t *delay_timer, uint8_t *sound_timer, uint64_t *time
     if (time_in_milliseconds() > *time_stamp + 15) {
         --*delay_timer;
         --*sound_timer;
-        SDL_Log("%d %d", *delay_timer, *sound_timer);
         *time_stamp = time_in_milliseconds();
     }
 }
@@ -177,73 +210,131 @@ void add_v(uint8_t *V, uint8_t value) {
     *V += value;
 }
 
-void skip_vx_e_nn(uint16_t *PC, uint8_t *V, uint8_t value) {
-    if (*V == value) *PC += 2;
+void skip_vx_e_nn(uint16_t *PC, uint8_t V, uint8_t value) {
+    if (V == value) *PC += 2;
 }
 
-void skip_vx_not_e_nn(uint16_t *PC, uint8_t *V, uint8_t value) {
-    if (*V != value) *PC += 2;
+void skip_vx_not_e_nn(uint16_t *PC, uint8_t V, uint8_t value) {
+    if (V != value) *PC += 2;
 }
 
-void skip_vx_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY) {
-    if (*VX == *VY) *PC += 2;
+void skip_vx_e_vy(uint16_t *PC, uint8_t VX, uint8_t VY) {
+    if (VX == VY) *PC += 2;
 }
 
-void skip_vx_not_e_vy(uint16_t *PC, uint8_t *VX, uint8_t *VY) {
-    if (*VX != *VY) *PC += 2;
+void skip_vx_not_e_vy(uint16_t *PC, uint8_t VX, uint8_t VY) {
+    if (VX != VY) *PC += 2;
 }
 
-void load_vy_to_vx(uint8_t *VX, uint8_t *VY) {
-    *VX = *VY;
+void set_vx_to_vy(uint8_t *VX, uint8_t VY) {
+    *VX = VY;
 }
 
-void or_vx_vy(uint8_t *VX, uint8_t *VY) {
-    *VX |= *VY;
+void or_vx_vy(uint8_t *VX, uint8_t VY) {
+    *VX |= VY;
 }
 
-void and_vx_vy(uint8_t *VX, uint8_t *VY) {
-    *VX &= *VY;
+void and_vx_vy(uint8_t *VX, uint8_t VY) {
+    *VX &= VY;
 }
 
-void xor_vx_vy(uint8_t *VX, uint8_t *VY) {
-    *VX ^= *VY;
+void xor_vx_vy(uint8_t *VX, uint8_t VY) {
+    *VX ^= VY;
 }
 
-void add_vx_vy(uint8_t *VX, uint8_t *VY) {
-    *VX += *VY;
+void add_vx_vy(uint8_t *VX, uint8_t VY) {
+    *VX += VY;
 }
 
-void subtract_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
-    *VF = *VX > *VY;
-    *VX = *VX - *VY;
+void subtract_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
+    *VF = *VX > VY;
+    *VX = *VX - VY;
 }
 
-void shiftr_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
+void shiftr_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
     *VF = ((*VX & 0x01) == 0x01);
     *VX >>= 1;
 }
 
-void subtract_vy_vx(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
-    *VF = *VY > *VX;
-    *VX = *VY - *VX;
+void subtract_vy_vx(uint8_t *VX, uint8_t VY, uint8_t *VF) {
+    *VF = VY > *VX;
+    *VX = VY - *VX;
 }
 
-void shiftl_vx_vy(uint8_t *VX, uint8_t *VY, uint8_t *VF) {
+void shiftl_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
     *VF = ((*VX & 0x80) == 0x80);
     *VX <<= 1;
 }
 
-void skip_key_v(uint8_t *V, uint16_t *PC) {
+void skip_key_v(uint8_t V, uint16_t *PC) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (keyboard_value(event) == *V) *PC += 2;
+        if (keyboard_value(event) == V) *PC += 2;
     }
 }
 
-void skip_key_n_v(uint8_t *V, uint16_t *PC) {
+void skip_key_n_v(uint8_t V, uint16_t *PC) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (keyboard_value(event) != *V) *PC += 2;
+        if (keyboard_value(event) != V) *PC += 2;
+    }
+}
+
+void set_v_delay(uint8_t *V, uint8_t delay_timer) {
+    *V = delay_timer;
+}
+
+void set_delay_v(uint8_t *delay_timer, uint8_t V) {
+    *delay_timer = V;
+}
+
+void set_sound_v(uint8_t *sound_timer, uint8_t V) {
+    *sound_timer = V;
+}
+
+void add_i_v(uint16_t *I, uint8_t V, uint8_t *VF) {
+    *I += V;
+    if (*I > 0xFFF) *VF = 1;
+}
+
+void toggle_halt_to_get_key() {
+    halt_to_get_key = !halt_to_get_key;
+}
+
+void get_key(uint8_t *V) {
+    SDL_Event event;
+    uint16_t key;
+    while (SDL_PollEvent(&event)) {
+        if ((key = keyboard_value(event)) != 0xFFF) {
+            *V = (uint8_t) key;
+            toggle_halt_to_get_key();
+        }
+    }
+}
+
+void font_character(uint16_t *I, uint8_t V) {
+    if (V <= 0xF) *I = FONT_START_POSITION + NUM_OF_FONT_CHARACTER_BYTES * V;
+}
+
+void binary_coded_decimal_conversion(uint8_t *RAM, uint16_t I, uint8_t V) {
+    *(RAM + I + 2) = V % 10;
+    V /= 10;
+    *(RAM + I + 1) = V % 10;
+    V /= 10;
+    *(RAM + I) = V;
+}
+
+void store_to_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
+    uint16_t tempI = *I;
+    while (tempI <= *I + VX) {
+        *(RAM + tempI++) = *(V++);
+    }
+}
+
+void load_from_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
+    uint16_t tempI = *I;
+    while (tempI <= *I + VX) {
+         *(V++) = *(RAM + tempI++);
     }
 }
 
@@ -314,25 +405,25 @@ void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid,
             } break;
         case 0x1000: jump(&ctx->PC, opcode & 0x0FFF); break;
         case 0x2000: call_subroutine(&ctx->stack, &ctx->PC, opcode & 0x0FFF); break;
-        case 0x3000: skip_vx_e_nn(&ctx->PC, ctx->V + nib2, opcode & 0x00FF); break;
-        case 0x4000: skip_vx_not_e_nn(&ctx->PC, ctx->V + nib2, opcode & 0x00FF); break;
-        case 0x5000: skip_vx_e_vy(&ctx->PC, ctx->V + nib2, ctx->V + nib3); break;
+        case 0x3000: skip_vx_e_nn(&ctx->PC, *(ctx->V + nib2), opcode & 0x00FF); break;
+        case 0x4000: skip_vx_not_e_nn(&ctx->PC, *(ctx->V + nib2), opcode & 0x00FF); break;
+        case 0x5000: skip_vx_e_vy(&ctx->PC, *(ctx->V + nib2), *(ctx->V + nib3)); break;
         case 0x6000: set_v(ctx->V + nib2, opcode & 0x00FF); break;
         case 0x7000: add_v(ctx->V + nib2, opcode & 0x00FF); break;
         case 0x8000:
             switch (nib4) {
-                case 0x0: load_vy_to_vx(ctx->V + nib2, ctx->V + nib3); break;
-                case 0x1: or_vx_vy(ctx->V + nib2, ctx->V + nib3); break;
-                case 0x2: and_vx_vy(ctx->V + nib2, ctx->V + nib3); break;
-                case 0x3: xor_vx_vy(ctx->V + nib2, ctx->V + nib3); break;
-                case 0x4: add_vx_vy(ctx->V + nib2, ctx->V + nib3); break;
-                case 0x5: subtract_vx_vy(ctx->V + nib2, ctx->V + nib3, ctx->V + 0x000F); break;
-                case 0x6: shiftr_vx_vy(ctx->V + nib2, ctx->V + nib3, ctx->V + 0x000F); break;
-                case 0x7: subtract_vy_vx(ctx->V + nib2, ctx->V + nib3, ctx->V + 0x000F); break;
-                case 0xE: shiftl_vx_vy(ctx->V + nib2, ctx->V + nib3, ctx->V + 0x000F); break;
+                case 0x0: set_vx_to_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
+                case 0x1: or_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
+                case 0x2: and_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
+                case 0x3: xor_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
+                case 0x4: add_vx_vy(ctx->V + nib2, *(ctx->V + nib3)); break;
+                case 0x5: subtract_vx_vy(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
+                case 0x6: shiftr_vx_vy(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
+                case 0x7: subtract_vy_vx(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
+                case 0xE: shiftl_vx_vy(ctx->V + nib2, *(ctx->V + nib3), ctx->V + 0x000F); break;
                 default: break;
             } break;
-        case 0x9000: skip_vx_not_e_vy(&ctx->PC, ctx->V + nib2, ctx->V + nib3); break;
+        case 0x9000: skip_vx_not_e_vy(&ctx->PC, *(ctx->V + nib2), *(ctx->V + nib3)); break;
         case 0xA000: set_i(&ctx->I, opcode & 0x0FFF); break;
         case 0xB000: jump_offset(&ctx->PC, opcode & 0x0FFF, *ctx->V); break;
         case 0xC000: random(ctx->V + nib2, opcode & 0x00FF); break;
@@ -342,10 +433,22 @@ void decode_execute(uint16_t opcode, struct Context *ctx, uint8_t *display_grid,
             break;
         case 0xE000:
             switch (opcode & 0x00FF) {
-                case 0x9E: skip_key_v(ctx->V + nib2, &ctx->PC);
-                case 0xA1: skip_key_n_v(ctx->V + nib2, &ctx->PC);
+                case 0x9E: skip_key_v(*ctx->V + nib2, &ctx->PC); break;
+                case 0xA1: skip_key_n_v(*ctx->V + nib2, &ctx->PC); break;
             } break;
-        case 0xF000: break;
+        case 0xF000:
+            switch (opcode & 0x00FF) {
+                case 0x07: set_v_delay(ctx->V + nib2, ctx->delay_timer); break;
+                case 0x15: set_delay_v(&ctx->delay_timer, *(ctx->V + nib2)); break;
+                case 0x18: set_sound_v(&ctx->sound_timer, *(ctx->V + nib2)); break;
+                case 0x1E: add_i_v(&ctx->I, *(ctx->V + nib2), ctx->V + 0xF); break;
+                case 0x0A: toggle_halt_to_get_key(); break;
+                case 0x29: font_character(&ctx->I, *(ctx->V + nib2)); break;
+                case 0x33: binary_coded_decimal_conversion(ctx->RAM, ctx->I, *(ctx->V + nib2)); break;
+                case 0x55: store_to_memory(ctx->RAM, &ctx->I, ctx->V, nib2); break;
+                case 0x65: load_from_memory(ctx->RAM, &ctx->I, ctx->V, nib2); break;
+                default: break;
+            } break;
         default: break;
     }
 }
@@ -373,10 +476,9 @@ uint16_t keyboard_value(SDL_Event event) {
     return 0xFFF;
 }
 
-uint16_t fetch(uint16_t *PC, uint8_t *RAM) {
-    uint16_t instruction = ((uint16_t)(*(RAM + *PC)) << 8) + *(RAM + *PC + 1);
+void fetch(uint16_t *opcode, uint16_t *PC, uint8_t *RAM) {
+    *opcode = ((uint16_t)(*(RAM + *PC)) << 8) + *(RAM + *PC + 1);
     *PC += 2;
-    return instruction;
 }
 
 uint64_t time_in_milliseconds(void) {
