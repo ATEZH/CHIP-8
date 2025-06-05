@@ -31,10 +31,11 @@ int main(int argc, char *argv[]) {
     };
     uint8_t display_grid[DISPLAY_WIDTH][DISPLAY_HEIGHT] = {0};
     uint16_t opcode;
-    uint32_t timer_global_delta = 0;
-    uint32_t last_ticks = SDL_GetTicks();
+
+    uint32_t last_cpu_tick = SDL_GetTicks();
+    uint32_t last_timer_tick = SDL_GetTicks();
+    uint32_t last_frame_tick = SDL_GetTicks();
     uint32_t current_ticks;
-    uint32_t delta;
 
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -65,12 +66,10 @@ int main(int argc, char *argv[]) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
     while (!close) {
-        SDL_Event event;
         current_ticks = SDL_GetTicks();
-        delta = current_ticks - last_ticks;
-        last_ticks = current_ticks;
 
-        // === 1. INPUT HANDLING ===
+        // --- 1. INPUT HANDLING ---
+        SDL_Event event;
         while (SDL_PollEvent(&event)) {
             SDL_Scancode sc = event.key.keysym.scancode;
             if (event.type == SDL_QUIT) {
@@ -78,6 +77,9 @@ int main(int argc, char *argv[]) {
             } else if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
                 if (sc == SDL_SCANCODE_SPACE) {
                     paused = !paused;
+                    if (paused || !debug_mode) {
+                        step = false;
+                    }
                     DEBUG_PRINT("Paused: %s\n", paused ? "Yes" : "No");
                 } else if (sc == SDL_SCANCODE_N && paused) {
                     step = true;
@@ -85,27 +87,36 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
-        // === 2. CPU INSTRUCTION EXECUTION ===
-        if (paused && !step) continue;
 
-        for (int i = 0; i < 16; i++) {
-            fetch(&opcode, &context.PC, context.RAM);
-            decode_execute(opcode, &context, (uint8_t *) display_grid, renderer);
-            if (step) {
-                step = false;
-                break;
+        // === 2. CPU INSTRUCTION EXECUTION ===
+        if (!paused || step) {
+            while ((double)(current_ticks - last_cpu_tick) >= CPU_INSTR_MS) {
+                fetch(&opcode, &context.PC, context.RAM);
+                decode_execute(opcode, &context, (uint8_t *) display_grid, renderer);
+
+                last_cpu_tick += CPU_INSTR_MS;
+
+                if (step) {
+                    step = false;
+                    break;
+                }
             }
         }
-        timer_global_delta += delta;
-        if (timer_global_delta >= (1000 / DECREMENT_SPEED)) {
+
+        // === 3. TIMER DECREMENT ===
+        while ((double)(current_ticks - last_timer_tick) >= TIMER_TICK_MS) {
             decrement_timers(&context.delay_timer, &context.sound_timer);
-            timer_global_delta -= (1000 / DECREMENT_SPEED);
+            last_timer_tick += TIMER_TICK_MS;
         }
 
-        // === 3. RENDERING ===
-        render_clear(renderer);
-        render_drawing(renderer, (uint8_t *) display_grid);
-        SDL_RenderPresent(renderer);
+        // === 4. RENDERING ===
+        if ((double)(current_ticks - last_frame_tick) >= FRAME_MS) {
+            render_clear(renderer);
+            render_drawing(renderer, (uint8_t *) display_grid);
+            SDL_RenderPresent(renderer);
+            last_frame_tick = current_ticks;
+        }
+        SDL_Delay(1);
     }
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -114,7 +125,7 @@ int main(int argc, char *argv[]) {
 }
 
 void clear_screen(uint8_t *display) {
-    DEBUG_PRINT("00E0 - Clear the display\n\n", "");
+    DEBUG_PRINT("00E0 - Clear the display\n\n");
     uint8_t *i = display;
     while (i < display + DISPLAY_WIDTH * DISPLAY_HEIGHT) *(i++) = 0;
 }
@@ -208,14 +219,6 @@ void subtract_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
     *VF = VF_t;
 }
 
-//void shiftr_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
-//    DEBUG_PRINT("8XY6 - Set VX = VX >> 1, set VF = LSb of VX\n"
-//                "          VX  = %.2X, VY  = %.2X, VX >> 1   = %.2X, VF  = %.2X\n\n", *VX, VY, *VX >> 1, *VX & 0x01);
-//    uint8_t VF_t = *VX & 0x01;
-//    *VX >>= 1;
-//    *VF = VF_t;
-//}
-
 void shiftr_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
     uint8_t target = shift_quirk ? VY : *VX;
     DEBUG_PRINT("8XY6 - Set VX = %s >> 1, set VF = LSb of value\n"
@@ -232,14 +235,6 @@ void subtract_vy_vx(uint8_t *VX, uint8_t VY, uint8_t *VF) {
     *VX = VY - *VX;
     *VF = VF_t;
 }
-
-//void shiftl_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
-//    DEBUG_PRINT("8XYE - Set VX = VX << 1, set VF = MSb of VX,\n"
-//                "          VX  = %.2X, VY  = %.2X, VX << 1   = %.2X, VF  = %.2X\n\n", *VX, VY, *VX << 1, (*VX & 0x80) >> 7);
-//    uint8_t VF_t = (*VX & 0x80) >> 7;
-//    *VX <<= 1;
-//    *VF = VF_t;
-//}
 
 void shiftl_vx_vy(uint8_t *VX, uint8_t VY, uint8_t *VF) {
     uint8_t target = shift_quirk ? VY : *VX;
@@ -260,12 +255,6 @@ void set_i(uint16_t *I, uint16_t address) {
                 "          NNN = %.3X\n\n", address);
     *I = address;
 }
-
-//void jump_offset(uint16_t *PC, uint16_t address, uint8_t V0) {
-//    DEBUG_PRINT("BNNN - Jump to location nnn + V0,\n"
-//                "          NNN = %.3X, V0 = %.2X\n\n", address, V0);
-//    *PC = address + V0;
-//}
 
 void jump_offset(uint16_t *PC, uint16_t address, uint8_t V0, uint8_t VX) {
     uint8_t offset = jump_offset_quirk ? VX : V0;
@@ -351,15 +340,6 @@ void binary_coded_decimal_conversion(uint8_t *RAM, uint16_t I, uint8_t V) {
     *(RAM + I) = V;
 }
 
-//void store_to_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
-//    DEBUG_PRINT("FX55 - Store V0 through VX into memory starting at I,\n"
-//                "          I = %.4X, VX  = %.2X\n\n", *I, VX);
-//    uint16_t tempI = *I;
-//    while (tempI <= *I + VX) {
-//        *(RAM + tempI++) = *(V++);
-//    }
-//}
-
 void store_to_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
     DEBUG_PRINT("FX55 - Store V0 through VX into memory starting at I,\n"
                 "          I = %.4X, VX  = %.2X\n\n", *I, VX);
@@ -371,15 +351,6 @@ void store_to_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
         *I += VX + 1;
     }
 }
-
-//void load_from_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
-//    DEBUG_PRINT("FX65 - Load V0 through VX from memory starting at I,\n"
-//                "          I = %.4X, VX  = %.2X\n\n", *I, VX);
-//    uint16_t tempI = *I;
-//    while (tempI <= *I + VX) {
-//        *(V++) = *(RAM + tempI++);
-//    }
-//}
 
 void load_from_memory(uint8_t *RAM, uint16_t *I, uint8_t *V, uint8_t VX) {
     DEBUG_PRINT("FX65 - Load V0 through VX from memory starting at I,\n"
@@ -524,26 +495,6 @@ uint8_t keypad_to_scancode(uint8_t k) {
     return SCANCODE;
 }
 
-//bool close() {
-//    bool close = false;
-//    SDL_Event event;
-//    while (SDL_PollEvent(&event)) {
-//        SDL_Scancode sc = event.key.keysym.scancode;
-//        SDL_Log("Key down: scancode=%d, keycode=%d, paused=%d",
-//                event.key.keysym.scancode, event.key.keysym.sym, paused);
-//        if (event.type == SDL_QUIT) {
-//            close = true;
-//        } else if (sc == SDL_SCANCODE_SPACE) {
-//            paused = !paused;
-//            DEBUG_PRINT("Paused: %s\n", paused ? "Yes" : "No");
-//        } else if (sc == SDL_SCANCODE_N && paused) {
-//            step = true;
-//            DEBUG_PRINT("Step one instruction\n");
-//        }
-//    }
-//    return close;
-//}
-
 int read_arguments(int argc, char *argv[], uint8_t *RAM) {
     int32_t i = 1;
     if (!argv[1] || strlen(argv[1]) == 0) {
@@ -554,7 +505,7 @@ int read_arguments(int argc, char *argv[], uint8_t *RAM) {
         if ((strcmp("--help", argv[i]) == 0) || (strcmp("-h", argv[i]) == 0)) {
             printf("%s", instructions);
             return -1;
-        } else if (strcmp("--debug", argv[i]) == 0) {
+        } else if (strcmp("--debug", argv[i]) == 0 || strcmp("-d", argv[i]) == 0) {
             debug_mode = true; paused = true;
         } else if (strcmp("--shift-quirk", argv[i]) == 0) {
             shift_quirk = true;

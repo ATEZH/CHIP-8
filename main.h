@@ -16,8 +16,14 @@
 #define PROGRAM_START_POSITION 0x200
 #define FONT_START_POSITION 0x0
 #define NUM_OF_FONT_CHARACTER_BYTES 5
-#define DECREMENT_SPEED 60
 #define DEBUG_PRINT(fmt, ...) do { if (debug_mode) fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
+
+#define CPU_SPEED_HZ 700
+#define TIMER_SPEED_HZ 60
+#define FPS 60
+#define CPU_INSTR_MS (1000.0f / CPU_SPEED_HZ)
+#define TIMER_TICK_MS (1000.0f / TIMER_SPEED_HZ)
+#define FRAME_MS (1000.0f / FPS)
 
 struct Stack {
     uint16_t stack[STACK_SIZE];
